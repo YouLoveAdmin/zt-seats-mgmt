@@ -1,7 +1,7 @@
 export default {
 	async fetch(request, env) {
-	  const accountId = env.ACCOUNT_ID;
-	  const apiKey= env.API_KEY;
+	  const accountId = env.ACCOUNT_ID; // Needed for authentication
+	  const apiKey= env.API_KEY; // Needed for authentication
 	  const userEmail = env.USER_EMAIL; // Needed for authentication
 	  const daysInactiveThreshold = 5; // Days before deleting inactive users
   
