@@ -4,6 +4,6 @@ Use Secret list for,
 3. USER_EMAIL
 
 Commands used for Secret list:
-_wrangler secret put ACCOUNT_ID
+wrangler secret put ACCOUNT_ID
 wrangler secret put API_KEY
-wrangler secret put USER_EMAIL_
+wrangler secret put USER_EMAIL
