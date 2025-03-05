@@ -20,21 +20,8 @@ export default {
 		return new Response(`Error fetching users: ${JSON.stringify(usersData.errors)}`, { status: 500 });
 	  }
   
-	  // Step 2: Map all fetched users to match the API response format
-	  const allUsers = usersData.result.map(user => ({
-		id: user.id,
-		created_at: user.created_at || "Unknown",
-		updated_at: user.updated_at || "Unknown",
-		uid: user.uid || "Unknown",
-		name: user.name || "Unknown",
-		email: user.email || "Unknown",
-		last_successful_login: user.last_successful_login || "Never",
-		access_seat: user.access_seat || false,
-		gateway_seat: user.gateway_seat || false,
-		seat_uid: user.seat_uid || "Not available"
-	  }));
-	  console.log("All fetched users:");
-	  console.log(JSON.stringify(allUsers, null, 2));
+	  // Step 2: Count total users
+	  const totalUsers = usersData.result.length;
   
 	  // Step 3: Identify inactive users
 	  const inactiveUsers = [];
@@ -47,7 +34,6 @@ export default {
 		  const daysInactive = (now - lastSeen) / (1000 * 60 * 60 * 24);
 		  if (daysInactive >= daysInactiveThreshold) {
 			inactiveUsers.push({
-			  id: user.id,
 			  email: user.email || "Unknown",
 			  seat_uid: user.seat_uid || "Not available"
 			});
@@ -56,7 +42,7 @@ export default {
 	  }
   
 	  // Step 4: Delete inactive users using PATCH method
-	  let deletedUsers = [];
+	  let deletedUsersCount = 0;
 	  const seatsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/access/seats`;
   
 	  for (const user of inactiveUsers) {
@@ -75,20 +61,18 @@ export default {
 		const patchResult = await patchResponse.json();
   
 		if (patchResult.success) {
-		  deletedUsers.push(user.email);
+		  deletedUsersCount++;
 		} else {
 		  console.log(`Failed to delete ${user.email}:`, patchResult.errors);
 		}
 	  }
   
-	  // Step 5: Return response
+	  // Step 5: Return response with counts only
 	  const responseBody = {
 		message: "Inactive users processed",
-		totalUsers: allUsers.length,
-		inactiveUsersFound: inactiveUsers.length,
-		usersDeleted: deletedUsers.length,
-		deletedEmails: deletedUsers,
-		allUsers: allUsers
+		TotalUsersFound: totalUsers,
+		InactiveUsersForMoreThanFiveDays: inactiveUsers.length,
+		UsersDeleted: deletedUsersCount
 	  };
   
 	  return new Response(JSON.stringify(responseBody), {
