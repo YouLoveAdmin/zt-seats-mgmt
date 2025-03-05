@@ -4,6 +4,7 @@ export default {
 	  const apiKey = env.API_KEY;
 	  const userEmail = env.USER_EMAIL;
 	  const daysInactiveThreshold = 5;
+	  const batchSize = 50; // Adjust based on API limits or testing
   
 	  const headers = {
 		"X-Auth-Email": userEmail,
@@ -29,7 +30,6 @@ export default {
   
 	  for (const user of usersData.result) {
 		const lastSeen = user.last_successful_login ? new Date(user.last_successful_login) : null;
-  
 		if (lastSeen) {
 		  const daysInactive = (now - lastSeen) / (1000 * 60 * 60 * 24);
 		  if (daysInactive >= daysInactiveThreshold) {
@@ -41,29 +41,31 @@ export default {
 		}
 	  }
   
-	  // Step 4: Delete inactive users using PATCH method
+	  // Step 4: Batch delete inactive users
 	  let deletedUsersCount = 0;
 	  const seatsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/access/seats`;
   
-	  for (const user of inactiveUsers) {
-		const patchBody = [{
+	  // Process inactive users in batches
+	  for (let i = 0; i < inactiveUsers.length; i += batchSize) {
+		const batch = inactiveUsers.slice(i, i + batchSize).map(user => ({
 		  "access_seat": false,
 		  "gateway_seat": false,
 		  "seat_uid": user.seat_uid
-		}];
+		}));
   
 		const patchResponse = await fetch(seatsUrl, {
 		  method: "PATCH",
 		  headers: headers,
-		  body: JSON.stringify(patchBody)
+		  body: JSON.stringify(batch)
 		});
   
 		const patchResult = await patchResponse.json();
   
 		if (patchResult.success) {
-		  deletedUsersCount++;
+		  deletedUsersCount += batch.length;
 		} else {
-		  console.log(`Failed to delete ${user.email}:`, patchResult.errors);
+		  console.log(`Failed to delete batch starting at index ${i}:`, patchResult.errors);
+		  // Optionally, count only successful deletions if API provides per-item results
 		}
 	  }
   
@@ -71,8 +73,8 @@ export default {
 	  const responseBody = {
 		message: "Inactive users processed",
 		TotalUsersFound: totalUsers,
-		InactiveUsersForMoreThanFiveDays: inactiveUsers.length,
-		UsersDeleted: deletedUsersCount
+		FivePlusDaysInactiveUsersFound: inactiveUsers.length,
+		InactiveUsersDeleted: deletedUsersCount
 	  };
   
 	  return new Response(JSON.stringify(responseBody), {
