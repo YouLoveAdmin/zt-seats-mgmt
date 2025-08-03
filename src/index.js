@@ -81,34 +81,52 @@ async function fetchUsers(env) {
 	  }
 	},
   
-	// Fetch handler for manual triggering
-	async fetch(request, env) {
-	  const url = new URL(request.url);
-	  const pathname = url.pathname;
-  
-	  // Silently ignore requests to /favicon.ico
-	  if (pathname === "/favicon.ico") {
-		return new Response(null, { status: 204 });
+  // Fetch handler for manual triggering
+  async fetch(request, env) {
+	const url = new URL(request.url);
+	const pathname = url.pathname;
+
+	// Silently ignore requests to /favicon.ico
+	if (pathname === "/favicon.ico") {
+	  return new Response(null, { status: 204 });
+	}
+
+	try {
+	  const users = await fetchUsers(env);
+	  const email = url.searchParams.get("email");
+	  let inactiveUsers;
+	  let deletedUsersCount;
+	  if (email) {
+		// Find the user with the specified email
+		const user = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+		if (!user) {
+		  return new Response(JSON.stringify({ error: `User with email ${email} not found.` }), {
+			headers: { "Content-Type": "application/json" },
+			status: 404
+		  });
+		}
+		inactiveUsers = [{ email: user.email, seat_uid: user.seat_uid }];
+		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 1);
+	  } else {
+		inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
+		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
 	  }
-  
-	  try {
-		const users = await fetchUsers(env);
-		const inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
-		const deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
-  
-		const responseBody = {
-		  message: "Inactive users processed (Manual)",
-		  TotalUsersFound: users.length,
-		  FivePlusDaysInactiveUsersFound: inactiveUsers.length,
-		  InactiveUsersDeleted: deletedUsersCount
-		};
-  
-		return new Response(JSON.stringify(responseBody), {
-		  headers: { "Content-Type": "application/json" },
-		  status: 200
-		});
-	  } catch (error) {
-		return new Response(error.message, { status: 500 });
-	  }
-	},
+
+	  const responseBody = {
+		message: email
+		  ? `User with email ${email} processed for deletion`
+		  : "Inactive users processed (Manual)",
+		TotalUsersFound: users.length,
+		FivePlusDaysInactiveUsersFound: email ? (inactiveUsers.length ? 1 : 0) : inactiveUsers.length,
+		InactiveUsersDeleted: deletedUsersCount
+	  };
+
+	  return new Response(JSON.stringify(responseBody), {
+		headers: { "Content-Type": "application/json" },
+		status: 200
+	  });
+	} catch (error) {
+	  return new Response(error.message, { status: 500 });
+	}
+  },
   };
