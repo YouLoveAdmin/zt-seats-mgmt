@@ -94,6 +94,7 @@ async function fetchUsers(env) {
 	try {
 	  const users = await fetchUsers(env);
 	  const email = url.searchParams.get("email");
+	  const targetCountParam = url.searchParams.get("targetcount");
 	  let inactiveUsers;
 	  let deletedUsersCount;
 	  if (email) {
@@ -107,6 +108,16 @@ async function fetchUsers(env) {
 		}
 		inactiveUsers = [{ email: user.email, seat_uid: user.seat_uid }];
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 1);
+	  } else if (targetCountParam && !isNaN(Number(targetCountParam))) {
+		// Sort users by last_successful_login descending (newest first)
+		const sortedUsers = users
+		  .filter(u => u.last_successful_login)
+		  .sort((a, b) => new Date(b.last_successful_login) - new Date(a.last_successful_login));
+		const targetCount = Number(targetCountParam);
+		// Exclude the newest targetCount users
+		const usersToDelete = sortedUsers.slice(targetCount);
+		inactiveUsers = usersToDelete.map(u => ({ email: u.email || "Unknown", seat_uid: u.seat_uid || "Not available" }));
+		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50);
 	  } else {
 		inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
@@ -115,9 +126,15 @@ async function fetchUsers(env) {
 	  const responseBody = {
 		message: email
 		  ? `User with email ${email} processed for deletion`
-		  : "Inactive users processed (Manual)",
+		  : targetCountParam
+			? `All users except the newest ${targetCountParam} have been processed for deletion`
+			: "Inactive users processed (Manual)",
 		TotalUsersFound: users.length,
-		FivePlusDaysInactiveUsersFound: email ? (inactiveUsers.length ? 1 : 0) : inactiveUsers.length,
+		FivePlusDaysInactiveUsersFound: email
+		  ? (inactiveUsers.length ? 1 : 0)
+		  : targetCountParam
+			? inactiveUsers.length
+			: inactiveUsers.length,
 		InactiveUsersDeleted: deletedUsersCount
 	  };
 
