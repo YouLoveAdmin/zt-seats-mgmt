@@ -12,7 +12,8 @@ async function fetchUsers(env) {
 	if (!data.success) {
 	  throw new Error(`Error fetching users: ${JSON.stringify(data.errors)}`);
 	}
-	return data.result;
+  // Only return users with active seats (active users)
+  return data.result.filter(user => user.seat_uid && user.seat_status === "active");
   }
   
   // Shared function to identify inactive users
