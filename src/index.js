@@ -119,7 +119,7 @@ async function fetchUsers(env) {
 		inactiveUsers = usersToDelete.map(u => ({ email: u.email || "Unknown", seat_uid: u.seat_uid || "Not available" }));
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50);
 	  } else {
-		inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
+		inactiveUsers = getInactiveUsers(users, 2); // daysInactiveThreshold = 2
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
 	  }
 
