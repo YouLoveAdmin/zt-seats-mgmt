@@ -73,7 +73,7 @@ async function fetchUsers(env) {
 	async scheduled(event, env, ctx) {
 	  try {
 		const users = await fetchUsers(env);
-		const inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
+		const inactiveUsers = getInactiveUsers(users, 2); // daysInactiveThreshold = 2
 		await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
 		console.log("Inactive users processed successfully by scheduler");
 	  } catch (error) {
