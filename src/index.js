@@ -12,7 +12,8 @@ async function fetchUsers(env) {
 	if (!data.success) {
 	  throw new Error(`Error fetching users: ${JSON.stringify(data.errors)}`);
 	}
-	return data.result;
+  // Only return users with Access Seat or Gateway Seat license
+  return data.result.filter(user => user.access_seat === true || user.gateway_seat === true);
   }
   
   // Shared function to identify inactive users
@@ -73,7 +74,7 @@ async function fetchUsers(env) {
 	async scheduled(event, env, ctx) {
 	  try {
 		const users = await fetchUsers(env);
-		const inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
+		const inactiveUsers = getInactiveUsers(users, 2); // daysInactiveThreshold = 2
 		await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
 		console.log("Inactive users processed successfully by scheduler");
 	  } catch (error) {
@@ -119,7 +120,7 @@ async function fetchUsers(env) {
 		inactiveUsers = usersToDelete.map(u => ({ email: u.email || "Unknown", seat_uid: u.seat_uid || "Not available" }));
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50);
 	  } else {
-		inactiveUsers = getInactiveUsers(users, 5); // daysInactiveThreshold = 5
+		inactiveUsers = getInactiveUsers(users, DAYS_INACTIVE_THRESHOLD); // daysInactiveThreshold
 		deletedUsersCount = await deleteInactiveUsers(env, inactiveUsers, 50); // batchSize = 50
 	  }
 
